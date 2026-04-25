@@ -874,7 +874,7 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
 
     private void OnCaretBlinkTick()
     {
-        _caretVisible = !_caretVisible;
+        _caretVisible = !_caretVisible && FindVisualRoot() is Window window && window.IsActive;
         InvalidateVisual();
     }
 

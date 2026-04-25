@@ -9,7 +9,8 @@ namespace Aprillz.MewUI.Controls;
 internal sealed class TabHeaderButton : ContentControl
 {
     public static readonly MewProperty<bool> IsSelectedProperty =
-        MewProperty<bool>.Register<TabHeaderButton>(nameof(IsSelected), false, MewPropertyOptions.AffectsRender,
+        MewProperty<bool>.Register<TabHeaderButton>(nameof(IsSelected), false,
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState,
             static (self, _, _) => self.OnIsSelectedChanged());
 
     /// <summary>
@@ -41,7 +42,7 @@ internal sealed class TabHeaderButton : ContentControl
     private void RefreshVisualState()
     {
         EnsureStyleResolved();
-        ResolveVisualState();
+        ResolveVisualState(snap: false);
         InvalidateVisual();
     }
 

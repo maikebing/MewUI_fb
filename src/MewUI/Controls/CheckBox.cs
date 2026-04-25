@@ -9,7 +9,7 @@ public class CheckBox : ContentControl
 {
     public static readonly MewProperty<bool?> IsCheckedProperty =
         MewProperty<bool?>.Register<CheckBox>(nameof(IsChecked), (bool?)false,
-            MewPropertyOptions.AffectsRender | MewPropertyOptions.BindsTwoWayByDefault,
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState | MewPropertyOptions.BindsTwoWayByDefault,
             static (self, oldValue, newValue) => self.OnIsCheckedChanged(oldValue, newValue));
 
     public static readonly MewProperty<bool> IsThreeStateProperty =

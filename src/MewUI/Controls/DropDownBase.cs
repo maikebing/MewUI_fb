@@ -14,7 +14,8 @@ public abstract class DropDownBase : Control, IPopupOwner
     private bool _closingPopup;
 
     public static readonly MewProperty<bool> IsDropDownOpenProperty =
-        MewProperty<bool>.Register<DropDownBase>(nameof(IsDropDownOpen), false, MewPropertyOptions.AffectsRender,
+        MewProperty<bool>.Register<DropDownBase>(nameof(IsDropDownOpen), false,
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState,
             static (self, oldValue, newValue) => self.OnIsDropDownOpenChanged(oldValue, newValue));
 
     public static readonly MewProperty<double> MaxDropDownHeightProperty =

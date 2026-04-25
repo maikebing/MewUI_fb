@@ -7,7 +7,7 @@ public abstract partial class ToggleBase : ContentControl
 {
     public static readonly MewProperty<bool> IsCheckedProperty =
         MewProperty<bool>.Register<ToggleBase>(nameof(IsChecked), false,
-            MewPropertyOptions.AffectsRender | MewPropertyOptions.BindsTwoWayByDefault,
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState | MewPropertyOptions.BindsTwoWayByDefault,
             static (self, oldValue, newValue) => self.OnIsCheckedPropertyChanged(oldValue, newValue));
 
     /// <summary>

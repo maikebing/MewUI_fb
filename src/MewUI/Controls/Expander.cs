@@ -10,7 +10,7 @@ public class Expander : HeaderedContentControl
 {
     public static readonly MewProperty<bool> IsExpandedProperty =
         MewProperty<bool>.Register<Expander>(nameof(IsExpanded), true,
-            MewPropertyOptions.AffectsLayout | MewPropertyOptions.BindsTwoWayByDefault,
+            MewPropertyOptions.AffectsLayout | MewPropertyOptions.AffectsVisualState | MewPropertyOptions.BindsTwoWayByDefault,
             static (self, oldValue, newValue) => self.OnIsExpandedChanged(oldValue, newValue));
 
     public static readonly MewProperty<double> GlyphSizeProperty =

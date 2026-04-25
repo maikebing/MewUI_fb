@@ -10,7 +10,7 @@ public sealed class ScrollBar : RangeBase
 {
     private static readonly MewProperty<bool> IsDraggingProperty =
         MewProperty<bool>.Register<ScrollBar>(nameof(IsDragging), false,
-            MewPropertyOptions.AffectsRender);
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState);
 
     public static readonly MewProperty<Orientation> OrientationProperty =
         MewProperty<Orientation>.Register<ScrollBar>(nameof(Orientation), Orientation.Vertical, MewPropertyOptions.AffectsLayout);

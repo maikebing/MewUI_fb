@@ -56,6 +56,16 @@ public abstract class Control : FrameworkElement
     public static readonly MewProperty<ContextMenu?> ContextMenuProperty =
         MewProperty<ContextMenu?>.Register<Control>(nameof(ContextMenu), null, MewPropertyOptions.None);
 
+    private static readonly MewPropertyKey<bool> IsPressedPropertyKey =
+        MewProperty<bool>.RegisterReadOnly<Control>(nameof(IsPressed), false,
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState);
+
+    /// <summary>
+    /// Whether this control is currently in the pressed state. Read-only; set internally via
+    /// <see cref="SetPressed"/>. Participates in style triggers.
+    /// </summary>
+    public static readonly MewProperty<bool> IsPressedProperty = IsPressedPropertyKey.Property;
+
     #endregion
 
     private IFont? _font;
@@ -65,7 +75,6 @@ public abstract class Control : FrameworkElement
     // VisualState system fields
     private VisualState _visualState;
 
-    private bool _isPressed;
     private bool _forceApplyStyle;
     private bool _styleNameResolved;
 
@@ -191,7 +200,7 @@ public abstract class Control : FrameworkElement
     /// <summary>
     /// Gets whether the control is currently pressed.
     /// </summary>
-    protected bool IsPressed => _isPressed;
+    public bool IsPressed => GetValue(IsPressedProperty);
 
     /// <summary>
     /// Named style key. Resolved from the nearest StyleSheet up the tree.
@@ -211,16 +220,10 @@ public abstract class Control : FrameworkElement
     }
 
     /// <summary>
-    /// Sets the pressed state and invalidates visual if changed.
+    /// Sets the pressed state. Change notification drives <see cref="InvalidateVisualState"/>
+    /// and <see cref="Element.InvalidateVisual"/> via the property's AffectsVisualState/AffectsRender flags.
     /// </summary>
-    protected void SetPressed(bool pressed)
-    {
-        if (_isPressed != pressed)
-        {
-            _isPressed = pressed;
-            InvalidateVisual();
-        }
-    }
+    protected void SetPressed(bool pressed) => SetValue(IsPressedPropertyKey, pressed);
 
     /// <summary>
     /// Registers a child element as a named part for TargetSetter resolution.
@@ -250,7 +253,7 @@ public abstract class Control : FrameworkElement
             f |= VisualStateFlags.Enabled;
             if (IsMouseOver || IsMouseCaptured) f |= VisualStateFlags.Hot;
             if (IsFocused || IsFocusWithin) f |= VisualStateFlags.Focused;
-            if (_isPressed) f |= VisualStateFlags.Pressed;
+            if (IsPressed) f |= VisualStateFlags.Pressed;
         }
         return new VisualState { Flags = f };
     }
@@ -299,45 +302,19 @@ public abstract class Control : FrameworkElement
     internal void SetStyle(Style? style)
     {
         _style = style;
-        _forceApplyStyle = true;
 
-        // Pre-apply the full style chain (base setters + matching triggers)
-        // via SetTarget so layout-affecting properties and current-state visuals
-        // are immediately correct before the next Measure/Arrange/Render.
-        // Without triggers, re-attachment would flash enabled colors because
-        // PreApply only set base (enabled) values and the disabled trigger
-        // was re-applied later via animation in Render.
-        PreApplyStyle(style);
+        // Apply the full style chain (base setters + matching triggers) immediately so
+        // layout-affecting properties and current-state visuals are correct before the
+        // next Measure/Arrange/Render. Using ApplyStyleValues (not a lightweight pre-apply)
+        // is required so _activeTriggerPropertyIds and _visualState stay in sync —
+        // otherwise a later state transition while offscreen (render culled) fails to
+        // restore trigger-stamped values because bookkeeping was skipped here.
+        var flags = ComputeVisualState().Flags;
+        _visualState = new VisualState { Flags = flags };
+        ApplyStyleValues(flags, snap: true);
+        _forceApplyStyle = false;
 
         InvalidateVisual();
-    }
-
-    private void PreApplyStyle(Style? style)
-    {
-        if (style == null) return;
-        PreApplyStyle(style.BasedOn);
-
-        var flags = ComputeVisualState().Flags;
-
-        var theme = Theme;
-        for (int i = 0; i < style.Setters.Count; i++)
-        {
-            if (style.Setters[i] is Setter s)
-                PropertyStore.SetStyle(s.Property, s.ResolveValue(theme));
-        }
-
-        for (int i = 0; i < style.Triggers.Count; i++)
-        {
-            var trigger = style.Triggers[i];
-            if (trigger.Matches(flags))
-            {
-                for (int j = 0; j < trigger.Setters.Count; j++)
-                {
-                    if (trigger.Setters[j] is Setter s)
-                        PropertyStore.SetTrigger(s.Property, s.ResolveValue(theme));
-                }
-            }
-        }
     }
 
     /// <summary>
@@ -406,20 +383,20 @@ public abstract class Control : FrameworkElement
         return Application.IsRunning ? Application.Current.StyleSheet?.Get(name) : null;
     }
 
-    protected override sealed void ResolveVisualState()
+    protected override sealed void ResolveVisualState(bool snap)
     {
         var newState = ComputeVisualState();
         var oldState = _visualState;
 
         if (newState != oldState || _forceApplyStyle)
         {
-            // When _forceApplyStyle is true (style just set/changed, re-attachment, theme change),
-            // snap to target values immediately instead of animating. Animations are only for
-            // interactive state changes (hover, press, focus).
-            bool snap = _forceApplyStyle;
+            // _forceApplyStyle (style just set/changed, re-attachment, theme change) always snaps:
+            // these are hard resets, not interactive transitions. Otherwise the caller chooses —
+            // the visual-state drain snaps for offscreen elements, animates for on-screen.
+            bool effectiveSnap = snap || _forceApplyStyle;
             _forceApplyStyle = false;
             _visualState = newState;
-            ApplyStyleValues(newState.Flags, snap);
+            ApplyStyleValues(newState.Flags, effectiveSnap);
             OnVisualStateChanged(oldState, newState);
         }
     }

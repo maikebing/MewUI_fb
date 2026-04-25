@@ -10,6 +10,7 @@ public abstract partial class UIElement : Element
 
     private bool _suggestedIsEnabled = true;
     private bool _suggestedIsEnabledInitialized;
+    private bool _visualStateDirty;
 
     /// <summary>
     /// Controls visibility. When false, the element is not rendered and does not participate in layout.
@@ -23,35 +24,36 @@ public abstract partial class UIElement : Element
     /// </summary>
     public static readonly MewProperty<bool> IsEnabledProperty =
         MewProperty<bool>.Register<UIElement>(nameof(IsEnabled), true,
-            MewPropertyOptions.AffectsRender);
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState);
 
     /// <summary>
-    /// Whether the element has keyboard focus.
+    /// Whether the element has keyboard focus. Read-only; set by <see cref="Input.FocusManager"/>.
     /// </summary>
     public static readonly MewProperty<bool> IsFocusedProperty =
-        MewProperty<bool>.Register<UIElement>(nameof(IsFocused), false,
-            MewPropertyOptions.AffectsRender);
+        MewProperty<bool>.RegisterReadOnly<UIElement>(nameof(IsFocused), false,
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState).Property;
 
     /// <summary>
     /// Whether this element or any of its descendants has keyboard focus.
+    /// Read-only; derived from the focus chain.
     /// </summary>
     public static readonly MewProperty<bool> IsFocusWithinProperty =
-        MewProperty<bool>.Register<UIElement>(nameof(IsFocusWithin), false,
-            MewPropertyOptions.AffectsRender);
+        MewProperty<bool>.RegisterReadOnly<UIElement>(nameof(IsFocusWithin), false,
+            MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState).Property;
 
     /// <summary>
-    /// Whether the mouse is over this element.
+    /// Whether the mouse is over this element. Read-only; set by the input router.
     /// </summary>
     public static readonly MewProperty<bool> IsMouseOverProperty =
-        MewProperty<bool>.Register<UIElement>(nameof(IsMouseOver), false,
-            MewPropertyOptions.None);
+        MewProperty<bool>.RegisterReadOnly<UIElement>(nameof(IsMouseOver), false,
+            MewPropertyOptions.AffectsVisualState).Property;
 
     /// <summary>
-    /// Whether this element has mouse capture.
+    /// Whether this element has mouse capture. Read-only; set via <see cref="Controls.Window.CaptureMouse"/>.
     /// </summary>
     public static readonly MewProperty<bool> IsMouseCapturedProperty =
-        MewProperty<bool>.Register<UIElement>(nameof(IsMouseCaptured), false,
-            MewPropertyOptions.None);
+        MewProperty<bool>.RegisterReadOnly<UIElement>(nameof(IsMouseCaptured), false,
+            MewPropertyOptions.AffectsVisualState).Property;
 
     /// <summary>
     /// Controls whether the element participates in hit testing.
@@ -110,6 +112,9 @@ public abstract partial class UIElement : Element
             InvalidateMeasure();
         else if (property.AffectsRender)
             InvalidateVisual();
+
+        if (property.AffectsVisualState)
+            InvalidateVisualState();
 
         if (property.Inherits)
             PropagateInheritedPropertyChange(property);
@@ -370,7 +375,7 @@ public abstract partial class UIElement : Element
             return;
         }
 
-        ResolveVisualState();
+        ResolveVisualState(snap: false);
         OnRender(context);
         RenderSubtree(context);
     }
@@ -378,7 +383,38 @@ public abstract partial class UIElement : Element
     /// <summary>
     /// Called before <see cref="OnRender"/> to resolve visual state (e.g. style triggers, state transitions).
     /// </summary>
-    protected virtual void ResolveVisualState() { }
+    /// <param name="snap">
+    /// When true, target values are applied immediately (no animation). Used when the element is
+    /// offscreen at drain time (animating invisible pixels is wasteful) or when a hard state
+    /// change must take effect before the next frame (style/theme reset).
+    /// </param>
+    protected virtual void ResolveVisualState(bool snap) { }
+
+    /// <summary>
+    /// Queues this element for visual-state reconciliation at the start of the next layout/render pass.
+    /// Dedup'd via an internal dirty flag; safe to call repeatedly. Call when a property that feeds
+    /// into <see cref="Controls.Control.ComputeVisualState"/> changes outside the normal render path.
+    /// </summary>
+    public void InvalidateVisualState()
+    {
+        if (_visualStateDirty)
+        {
+            return;
+        }
+
+        _visualStateDirty = true;
+
+        if (FindVisualRoot() is Window window)
+        {
+            window.RegisterVisualStateDirty(this);
+        }
+    }
+
+    internal bool IsVisualStateDirty => _visualStateDirty;
+
+    internal void ClearVisualStateDirty() => _visualStateDirty = false;
+
+    internal void ResolveVisualStateFromDrain(bool snap) => ResolveVisualState(snap);
 
     /// <summary>
     /// Renders the element's own visuals (background, border, text, etc.).
@@ -525,6 +561,7 @@ public abstract partial class UIElement : Element
         {
             OnEnabledChanged();
             InvalidateVisual();
+            InvalidateVisualState();
         }
     }
 

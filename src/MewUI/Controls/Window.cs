@@ -57,6 +57,8 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     private readonly List<Window> _modalChildren = new();
     private readonly List<UIElement> _mouseOverOldPath = new(capacity: 16);
     private readonly List<UIElement> _mouseOverNewPath = new(capacity: 16);
+    private readonly List<UIElement> _visualStateDirtyList = new();
+    private bool _updatingVisualStates;
     private UIElement? _mouseOverElement;
     private UIElement? _capturedElement;
     private Point _lastMousePositionDip;
@@ -1344,6 +1346,64 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     }
 
     /// <summary>
+    /// Queues <paramref name="element"/> for visual-state reconciliation at the next layout pass.
+    /// Called by <see cref="UIElement.InvalidateVisualState"/>.
+    /// </summary>
+    internal void RegisterVisualStateDirty(UIElement element)
+    {
+        // Ignore re-entrant registrations made during a drain: those elements are being
+        // processed in the current pass already, and re-adding would grow the list mid-iteration.
+        if (_updatingVisualStates)
+        {
+            return;
+        }
+
+        _visualStateDirtyList.Add(element);
+    }
+
+    /// <summary>
+    /// Reconciles visual states for all elements that called <see cref="UIElement.InvalidateVisualState"/>
+    /// since the last drain. Offscreen elements snap (no animation); onscreen elements animate.
+    /// </summary>
+    public void UpdateVisualStates()
+    {
+        if (_visualStateDirtyList.Count == 0)
+        {
+            return;
+        }
+
+        _updatingVisualStates = true;
+        try
+        {
+            var viewport = new Rect(ClientSize);
+
+            for (int i = 0; i < _visualStateDirtyList.Count; i++)
+            {
+                var element = _visualStateDirtyList[i];
+                element.ClearVisualStateDirty();
+
+                // Skip elements that got detached before the drain (visual root no longer this window).
+                if (element.FindVisualRoot() != this)
+                {
+                    continue;
+                }
+
+                // Offscreen: snap to avoid wasting animations on invisible pixels.
+                // SkipViewportCull elements (e.g. transformed subtrees) always animate since their
+                // bounds don't reflect true visibility.
+                bool onscreen = element.SkipViewportCull || viewport.IntersectsWith(element.Bounds);
+                element.ResolveVisualStateFromDrain(snap: !onscreen);
+            }
+
+            _visualStateDirtyList.Clear();
+        }
+        finally
+        {
+            _updatingVisualStates = false;
+        }
+    }
+
+    /// <summary>
     /// Performs layout measurement and arrangement for the window content.
     /// </summary>
     public void PerformLayout()
@@ -1352,6 +1412,10 @@ public partial class Window : ContentControl, ILayoutRoundingHost
         {
             return;
         }
+
+        // Drain queued visual-state invalidations before layout reads state-dependent properties
+        // (e.g. a style trigger may adjust size/padding based on IsEnabled).
+        UpdateVisualStates();
 
         // Window is the visual root — it has no Parent, so OnVisualRootChanged never fires.
         // Resolve its style here before reading layout-affecting properties like Padding.

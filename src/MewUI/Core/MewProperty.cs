@@ -68,6 +68,9 @@ public abstract class MewProperty
     /// <summary>Whether Bind() defaults to TwoWay mode for this property.</summary>
     public bool BindsTwoWayByDefault => (Options & MewPropertyOptions.BindsTwoWayByDefault) != 0;
 
+    /// <summary>Whether value changes should queue visual-state reconciliation.</summary>
+    public bool AffectsVisualState => (Options & MewPropertyOptions.AffectsVisualState) != 0;
+
     internal MewProperty()
     {
         lock (_lock)

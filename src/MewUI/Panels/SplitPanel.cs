@@ -518,7 +518,7 @@ public sealed class SplitPanel : Panel
     {
         private static readonly MewProperty<bool> IsDraggingProperty =
             MewProperty<bool>.Register<SplitterThumb>(nameof(IsDragging), false,
-                MewPropertyOptions.AffectsRender);
+                MewPropertyOptions.AffectsRender | MewPropertyOptions.AffectsVisualState);
 
         private readonly SplitPanel _owner;
 
