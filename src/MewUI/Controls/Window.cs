@@ -388,6 +388,10 @@ public partial class Window : ContentControl, ILayoutRoundingHost
         MewProperty<double>.Register<Window>(nameof(ExtendClientAreaTitleBarHeight), 0.0, MewPropertyOptions.None,
             static (self, _, _) => self.OnExtendClientAreaChanged());
 
+    public static readonly MewProperty<PlatformWindowOptions?> PlatformOptionsProperty =
+        MewProperty<PlatformWindowOptions?>.Register<Window>(nameof(PlatformOptions), null, MewPropertyOptions.None,
+            static (self, _, _) => self._backend?.SetPlatformOptions(self.PlatformOptions));
+
     public static readonly MewProperty<bool> UseLayoutRoundingProperty =
         MewProperty<bool>.Register<Window>(nameof(UseLayoutRounding), true, MewPropertyOptions.None);
 
@@ -507,6 +511,17 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     {
         get => GetValue(ExtendClientAreaTitleBarHeightProperty);
         set => SetValue(ExtendClientAreaTitleBarHeightProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the platform-specific window options.
+    /// Setting options for a mismatched platform throws
+    /// <see cref="InvalidOperationException"/> at backend attach time.
+    /// </summary>
+    public PlatformWindowOptions? PlatformOptions
+    {
+        get => GetValue(PlatformOptionsProperty);
+        set => SetValue(PlatformOptionsProperty, value);
     }
 
     /// <summary>
@@ -1717,6 +1732,8 @@ public partial class Window : ContentControl, ILayoutRoundingHost
             _backend.SetCanMinimize(false);
         if (!CanMaximize)
             _backend.SetCanMaximize(false);
+        if (PlatformOptions != null)
+            _backend.SetPlatformOptions(PlatformOptions);
     }
 
 

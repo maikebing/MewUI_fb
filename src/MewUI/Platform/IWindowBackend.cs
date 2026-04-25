@@ -195,6 +195,12 @@ public interface IWindowBackend : IDisposable
     void SetWindowBorderColor(Color? color) { }
 
     /// <summary>
+    /// Sets the platform-specific window options.
+    /// Throws <see cref="InvalidOperationException"/> if the options type does not match the platform.
+    /// </summary>
+    void SetPlatformOptions(Controls.PlatformWindowOptions? options) { }
+
+    /// <summary>
     /// Gets the native window chrome capabilities supported by this platform.
     /// </summary>
     Controls.WindowChromeCapabilities ChromeCapabilities => Controls.WindowChromeCapabilities.None;
