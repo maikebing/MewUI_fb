@@ -23,6 +23,9 @@
   </ItemGroup>
  
   <ItemGroup>
+    <Compile Include="..\MewUI\Shared\Rendering\TextBitmap.cs" LinkBase="Rendering" />
+    <Compile Include="..\MewUI\Shared\Rendering\TextCacheKey.cs" LinkBase="Rendering" />
+
     <Compile Include="..\MewUI\Shared\Rendering\MewVG\MewVGGraphicsContext.Common.cs" LinkBase="Rendering\MewVG" />
     <Compile Include="..\MewUI\Shared\Rendering\MewVG\MewVGGraphicsFactory.cs" LinkBase="Rendering\MewVG" />
     <Compile Include="..\MewUI\Shared\Rendering\MewVG\MewVGGraphicsFactory.Win32.cs" LinkBase="Rendering\MewVG" />
