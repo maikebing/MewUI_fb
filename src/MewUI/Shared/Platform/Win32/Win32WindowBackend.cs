@@ -1761,7 +1761,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
         var tme = new TRACKMOUSEEVENT
         {
             cbSize = (uint)Marshal.SizeOf<TRACKMOUSEEVENT>(),
-            dwFlags = User32.TME_LEAVE,
+            dwFlags = TRACKMOUSEEVENT.TME_LEAVE,
             hwndTrack = Handle,
             dwHoverTime = 0,
         };
