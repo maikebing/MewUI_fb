@@ -68,6 +68,9 @@ internal sealed class X11WindowBackend : IWindowBackend
     private bool _xi2Enabled;
     private int _xi2Opcode;
     private readonly Dictionary<(int deviceId, int valuator), XI2ScrollAxis> _scrollAxes = new();
+    // True when at least one master pointer has a scroll axis cached — only then is XI_Motion
+    // guaranteed to deliver high-res scroll, so only then should legacy core wheel be suppressed.
+    private bool _xi2MasterHasScrollAxis;
 
     private sealed class XI2ScrollAxis
     {
@@ -890,6 +893,7 @@ internal sealed class X11WindowBackend : IWindowBackend
     private void CacheXI2ScrollAxes()
     {
         _scrollAxes.Clear();
+        _xi2MasterHasScrollAxis = false;
 
         nint devicesPtr = XI2.XIQueryDevice(Display, XI2.XIAllDevices, out int deviceCount);
         if (devicesPtr == 0 || deviceCount <= 0)
@@ -922,6 +926,8 @@ internal sealed class X11WindowBackend : IWindowBackend
                             ScrollType = scrollInfo.scroll_type,
                             Increment = scrollInfo.increment,
                         };
+                        if (device.use == XI2.XIMasterPointer)
+                            _xi2MasterHasScrollAxis = true;
                     }
                 }
             }
@@ -1783,10 +1789,11 @@ internal sealed class X11WindowBackend : IWindowBackend
                 return;
             }
 
-            // When XInput2 is delivering high-res scroll for a device with scroll axes,
-            // the X server still emits emulated core button 4-7 alongside XI_Motion. Drop
-            // the legacy path to avoid doubled wheel deltas.
-            if (_xi2Enabled && _scrollAxes.Count > 0)
+            // When XI_Motion is delivering high-res scroll for a master pointer with scroll
+            // axes, the X server still emits emulated core button 4-7 alongside it. Drop the
+            // legacy path to avoid doubled wheel deltas. Gated on master (not any device) so
+            // setups where only slaves expose scroll classes still get wheel via legacy.
+            if (_xi2Enabled && _xi2MasterHasScrollAxis)
             {
                 return;
             }
