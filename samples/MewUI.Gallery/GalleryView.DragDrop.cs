@@ -69,6 +69,7 @@ partial class GalleryView
                         .BindText(_dragLog)
                 ),
             minWidth: 360);
+
     private FrameworkElement BuildInternalDragSample()
     {
         _slotA = new StackPanel().Vertical().Spacing(4);
