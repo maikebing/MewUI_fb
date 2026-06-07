@@ -8,6 +8,13 @@ using Aprillz.MewUI.Gallery;
 [assembly: System.Reflection.Metadata.MetadataUpdateHandler(typeof(Aprillz.MewUI.HotReload.MewUiMetadataUpdateHandler))]
 #endif
 
+
+if (OperatingSystem.IsWindows())
+{
+    Thread.CurrentThread.SetApartmentState(ApartmentState.Unknown);
+    Thread.CurrentThread.SetApartmentState(ApartmentState.STA);
+}
+
 var stopwatch = Stopwatch.StartNew();
 Startup();
 IconSource icon;
